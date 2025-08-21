@@ -49,17 +49,20 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
 
     //Create degeneracy ordering
 
-    VertexId** buckets = new VertexId*[max_degree+1];
-    VertexId* bucket_sizes = new VertexId[max_degree+1]();
-    for(EdgeId d = 0; d <= max_degree; ++d) {
-        buckets[d] = new VertexId[H.num_vertices]; // overallocate, at most n vertices per bucket
-        bucket_sizes[d] = 0;
-    }
+    //VertexId** buckets = new VertexId*[max_degree+1];
+    // VertexId* bucket_sizes = new VertexId[max_degree+1]();
+    std::vector<std::vector<VertexId>> buckets(max_degree + 1);
+
+    // for(EdgeId d = 0; d <= max_degree; ++d) {
+    //     //buckets[d] = new VertexId[H.num_vertices]; // overallocate, at most n vertices per bucket
+    //     bucket_sizes[d] = 0;
+    // }
 
     for(VertexId v = 0; v < H.num_vertices; ++v) {
         EdgeId d = degrees[v];
         assert(d <= max_degree);
-        buckets[d][bucket_sizes[d]++] = v;
+        //buckets[d][bucket_sizes[d]++] = v;
+        buckets[d].push_back(v);
     }
     VertexId ordering_pos = 0;
     EdgeId current_min_degree = 0;
@@ -67,15 +70,18 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
 
     while(ordering_pos < H.num_vertices - ndeleted) {
         // find the next non-empty bucket
-        while(current_min_degree <= max_degree && bucket_sizes[current_min_degree] == 0) {
+        //while(current_min_degree <= max_degree && bucket_sizes[current_min_degree] == 0) {
+        while(current_min_degree <= max_degree && buckets[current_min_degree].size() == 0) {
             current_min_degree++;
         }
         if(current_min_degree > max_degree) break;
         
         // take a vertex
-        VertexId idx = --bucket_sizes[current_min_degree];
-        assert(bucket_sizes[current_min_degree] >= 0);
-        VertexId v = buckets[current_min_degree][idx];
+        // VertexId idx = --bucket_sizes[current_min_degree];
+        // assert(bucket_sizes[current_min_degree] >= 0);
+        //VertexId v = buckets[current_min_degree][idx];
+        VertexId v = buckets[current_min_degree].back();
+        buckets[current_min_degree].pop_back();
         assert(0 <= v && v < H.num_vertices);
         if(deletedVertices[v]) continue;
 
@@ -100,8 +106,9 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
                     assert(0 <= u && u < H.num_vertices);
                     if(!deletedVertices[u]) {
                         degrees[u]--;
-                        buckets[degrees[u]][bucket_sizes[degrees[u]]++] = u;
-                        if (bucket_sizes[degrees[u]] > H.num_vertices){
+                        //buckets[degrees[u]][bucket_sizes[degrees[u]]++] = u;
+                        buckets[degrees[u]].push_back(u);
+                        if (buckets[degrees[u]].size() > H.num_vertices){
                             std::cout<<"ERROR";
                         }
                         if (degrees[u]< current_min_degree){
@@ -114,11 +121,11 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
     }
 
     //some cleanup
-    delete[] bucket_sizes;
-    for (EdgeId d = 0; d <= max_degree; ++d) {
-        delete[] buckets[d];   // free each inner array
-    }
-    delete[] buckets;
+    // delete[] bucket_sizes;
+    // for (EdgeId d = 0; d <= max_degree; ++d) {
+    //     delete[] buckets[d];   // free each inner array
+    // }
+    // delete[] buckets;
     delete[] deletedEdges;
     delete[] deletedVertices;
     delete[] degrees;
