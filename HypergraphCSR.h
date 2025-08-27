@@ -63,3 +63,4 @@ struct DirHypergraphCSR {
 };
 
 bool contains_vertex(const DirHypergraphCSR& H, EdgeId e, VertexId v);
+void print_edge(const DirHypergraphCSR& dirH, EdgeId e);

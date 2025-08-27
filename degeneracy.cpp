@@ -29,22 +29,27 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
     }
 
     //Filter vertices with no degree
-    VertexId ndeleted = 0;
     VertexId* map = new VertexId[H.num_vertices]();
+    EdgeId* outdegrees = new EdgeId[H.num_vertices]();
+    VertexId ordering_pos = 0;
+
 
     EdgeId max_degree = 0;
     for (VertexId i = 0; i < H.num_vertices; i++){
         if (degrees[i] == 0){
             map[i] = H.num_vertices;
             deletedVertices[i] = true;
-            ndeleted++;
+            map[i] = ordering_pos;
+            ordering[ordering_pos] = i;
+            ordering_pos++;
+            outdegrees[i] = 0;
         }
         if(degrees[i] > max_degree){
             max_degree = degrees[i];
         }
     }
 
-    dirH.num_vertices = H.num_vertices - ndeleted;
+    dirH.num_vertices = H.num_vertices;
     dirH.num_hyperedges = H.num_hyperedges;
 
     //Create degeneracy ordering
@@ -64,11 +69,9 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
         //buckets[d][bucket_sizes[d]++] = v;
         buckets[d].push_back(v);
     }
-    VertexId ordering_pos = 0;
     EdgeId current_min_degree = 0;
-    EdgeId* outdegrees = new EdgeId[H.num_vertices]();
 
-    while(ordering_pos < H.num_vertices - ndeleted) {
+    while(ordering_pos < H.num_vertices) {
         // find the next non-empty bucket
         //while(current_min_degree <= max_degree && bucket_sizes[current_min_degree] == 0) {
         while(current_min_degree <= max_degree && buckets[current_min_degree].size() == 0) {
@@ -139,12 +142,12 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
     EdgeId edge_offset = 0;
     for(EdgeId e=0; e< dirH.num_hyperedges; e++){
         dirH.edge_offsets[e]=edge_offset;
-        if (H.edge_sizes[e] < 2) {
-            dirH.edge_sizes[e]=0;
-        }
-        else {
+        // if (H.edge_sizes[e] < 2) {
+        //     dirH.edge_sizes[e]=0;
+        // }
+        // else {
             dirH.edge_sizes[e]=H.edge_sizes[e];
-        }
+        // }
         edge_offset += dirH.edge_sizes[e];
     }
     dirH.ed_vertices = new VertexId[edge_offset];
@@ -169,9 +172,9 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
     //Populate the CSR's
 
     for(EdgeId e=0; e< dirH.num_hyperedges; e++){
-        if (dirH.edge_sizes[e]==0) {
-            continue;
-        }
+        // if (dirH.edge_sizes[e]==0) {
+        //     continue;
+        // }
         std::vector<VertexId> indices;
         for (VertexId i = H.edge_offsets[e]; i < H.edge_offsets[e]+H.edge_sizes[e]; i++) {
             VertexId v = map[H.ed_vertices[i]];
