@@ -11,11 +11,21 @@
 
 
 int main(int argc, char* argv[]) {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <hypergraph_file>\n";
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <hypergraph_file> <c(ount)/e(numerate)>\n";
         return 1;
     }
     bool enumerate = false;
+    std::string mode = argv[2];
+    if (mode == "c") {
+      enumerate = false;
+    } else if (mode == "e"){
+      enumerate = true;
+    } else {
+      std::cerr << "Usage: " << argv[0] << " <hypergraph_file> <c(ount)/e(numerate)>\n";
+        return 1;
+    }
+
 
     clock_t start;
     clock_t stop;
@@ -82,11 +92,11 @@ int main(int argc, char* argv[]) {
       std::cout << "------------------------------------------------------" << std::endl << std::endl;
       
     }
-
+    std::cout <<"Counts: \n";
     for (int i = 1; i <= 20; i++){
-      std::cout << "Number of unique hypertriangles of type "<<i<<": " << counts[i-1]<< "\n";
+      std::cout << i<<"\t" << counts[i-1]<< "\n";
     }
-    std::cout << "\n" << "Total time: " << (double)(stop - start) / CLOCKS_PER_SEC << " sec" << std::endl;
+    std::cout << "\n" << "Time:\t" << (double)(stop - start) / CLOCKS_PER_SEC << " sec" << std::endl;
 
     delete[] ordering;
     delete[] counts;

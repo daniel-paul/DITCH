@@ -5,6 +5,7 @@
 #include <cassert>
 #include <algorithm>
 #include <tuple>
+#include <ctime>
 
 struct TripleIntersections {
     int i12_not3 = 0;  // |e1 ∩ e2 \ e3|
@@ -117,53 +118,7 @@ std::pair<int,TripleIntersections> triple_intersections(const DirHypergraphCSR& 
     //return {type, res.i12_not3 * res.i23_not1 * res.i31_not2};
 }
 
-std::pair<bool,TripleIntersections> triple_intersection_source(const DirHypergraphCSR& H, EdgeId e1, EdgeId e2, EdgeId e3, VertexId v) {
-    TripleIntersections res;
-    bool source_intersect = false;
-    bool first = true;
 
-    auto p1 = H.edge_offsets[e1], p1_end = p1 + H.edge_sizes[e1];
-    auto p2 = H.edge_offsets[e2], p2_end = p2 + H.edge_sizes[e2];
-    auto p3 = H.edge_offsets[e3], p3_end = p3 + H.edge_sizes[e3];
-    constexpr VertexId INF = std::numeric_limits<VertexId>::max();
-
-    while (p1 < p1_end || p2 < p2_end || p3 < p3_end) {
-        VertexId v1 = (p1 < p1_end) ? H.ed_vertices[p1] : INF;
-        VertexId v2 = (p2 < p2_end) ? H.ed_vertices[p2] : INF;
-        VertexId v3 = (p3 < p3_end) ? H.ed_vertices[p3] : INF;
-
-        VertexId minv = v1;
-        if (v2 < minv) minv = v2;
-        if (v3 < minv) minv = v3;
-
-        bool in1 = (v1 == minv);
-        bool in2 = (v2 == minv);
-        bool in3 = (v3 == minv);
-
-        if (in1 & in2 & in3) {                // all three
-            ++res.i123;
-            if(first){
-                first = false;
-                if(v1 == v) {
-                    source_intersect = true;
-                } else {
-                    break;
-                }
-            }
-        } else if (in1 & in2) {               // e1 ∩ e2
-            ++res.i12_not3;
-        } else if (in2 & in3) {               // e2 ∩ e3
-            ++res.i23_not1;
-        } else if (in1 & in3) {               // e1 ∩ e3
-            ++res.i31_not2;
-        }
-
-        if (in1) ++p1;
-        if (in2) ++p2;
-        if (in3) ++p3;
-    }
-    return {source_intersect, res};
-}
 
 void count_hypertriangles(DirHypergraphCSR& dirH, EdgeId* counts){
 
@@ -284,7 +239,72 @@ int edge_intersection(DirHypergraphCSR& dirH, EdgeId e1, EdgeId e2, VertexId* ou
     return size;
 }
 
+struct Containment {
+    bool source_intersect;
+    bool e1contained;
+    bool e2contained;
+    bool e3contained;
+};
+
+std::pair<Containment,TripleIntersections> triple_intersection_source(const DirHypergraphCSR& H, EdgeId e1, EdgeId e2, EdgeId e3, VertexId v) {
+    Containment c;
+    c.e1contained = false;
+    c.e2contained = false;
+    c.e3contained = false;
+    TripleIntersections res;
+    c.source_intersect = false;
+    bool first = true;
+
+    auto p1 = H.edge_offsets[e1], p1_end = p1 + H.edge_sizes[e1];
+    auto p2 = H.edge_offsets[e2], p2_end = p2 + H.edge_sizes[e2];
+    auto p3 = H.edge_offsets[e3], p3_end = p3 + H.edge_sizes[e3];
+    constexpr VertexId INF = std::numeric_limits<VertexId>::max();
+
+
+
+    while (p1 < p1_end || p2 < p2_end || p3 < p3_end) {
+        VertexId v1 = (p1 < p1_end) ? H.ed_vertices[p1] : INF;
+        VertexId v2 = (p2 < p2_end) ? H.ed_vertices[p2] : INF;
+        VertexId v3 = (p3 < p3_end) ? H.ed_vertices[p3] : INF;
+
+        VertexId minv = v1;
+        if (v2 < minv) minv = v2;
+        if (v3 < minv) minv = v3;
+
+        bool in1 = (v1 == minv);
+        bool in2 = (v2 == minv);
+        bool in3 = (v3 == minv);
+
+        if (in1 & in2 & in3) {                // all three
+            ++res.i123;
+            if(first){
+                first = false;
+                if(v1 == v) {
+                    c.source_intersect = true;
+                } else {
+                    break;
+                }
+            }
+            if(p1 == p1_end -1) c.e1contained = true;
+            if(p2 == p2_end -1) c.e2contained = true;
+            if(p3 == p3_end -1) c.e3contained = true;
+        } else if (in1 & in2) {               // e1 ∩ e2
+            ++res.i12_not3;
+        } else if (in2 & in3) {               // e2 ∩ e3
+            ++res.i23_not1;
+        } else if (in1 & in3) {               // e1 ∩ e3
+            ++res.i31_not2;
+        }
+
+        if (in1) ++p1;
+        if (in2) ++p2;
+        if (in3) ++p3;
+    }
+    return {c, res};
+}
+
 std::tuple<EdgeId, EdgeId> getTotalStarCount(DirHypergraphCSR& dirH) {
+    //Compute the indegrees of each vertex
     EdgeId* indegrees = new EdgeId[dirH.num_vertices]();
     for(EdgeId e =0; e < dirH.num_hyperedges; e++){
         indegrees[dirH.ed_vertices[dirH.edge_offsets[e]+dirH.edge_sizes[e]-1]]++;
@@ -292,12 +312,101 @@ std::tuple<EdgeId, EdgeId> getTotalStarCount(DirHypergraphCSR& dirH) {
 
     EdgeId stars = 0;
     EdgeId extended_stars = 0;
+
+    //Compute stars that contain an endpoint
     for (VertexId v=0; v < dirH.num_vertices; v++) {
         stars += (indegrees[v] > 2 ? indegrees[v] * (indegrees[v]-1) * (indegrees[v]-2) / 6: 0);
         stars += (indegrees[v] > 1 ? indegrees[v] * (indegrees[v]-1) * dirH.outdegrees[v] / 2: 0);
         stars += (dirH.outdegrees[v] > 1 ? indegrees[v] * dirH.outdegrees[v] * (dirH.outdegrees[v]-1) / 2: 0);
     }
 
+    //Compute extended-stars that contain an endpoint
+    for (VertexId v = 0 ; v < dirH.num_vertices; v++) {
+        for (EdgeId i = dirH.vertex_offset[v]; i < dirH.vertex_offset[v] + dirH.outdegrees[v]; i++){
+            EdgeId e1 = dirH.ve_hyperedges[i];
+            for (EdgeId j = i+1; j < dirH.vertex_offset[v] + dirH.outdegrees[v]; j++){
+                EdgeId e2 = dirH.ve_hyperedges[j];
+                int min = std::min(dirH.edge_sizes[e1], dirH.edge_sizes[e2]);
+                VertexId* intersection = new VertexId[min];
+                int size = edge_intersection(dirH,e1,e2, intersection);
+                //Verify it is the ``source'' of the intersection and has more than 1 vertex in the intersection
+                if(intersection[0] != v || size==1){
+                    continue;
+                }
+                //Add the indegrees of all vertices in the intersection
+                for (int k = 0; k < size; k++){
+                    extended_stars += indegrees[intersection[k]];
+                }
+                //For the last  vertex we need to compute the number of edges ending on it that contain the intersection and substract them from the count.
+                for (EdgeId k = dirH.vertex_offset[v]; k < dirH.vertex_offset[v] + dirH.outdegrees[v]; k++){
+                    EdgeId e3 = dirH.ve_hyperedges[k];
+                    VertexId laste3 = dirH.ed_vertices[dirH.edge_offsets[e3] + dirH.edge_sizes[e3] - 1];
+                    // Check edge ends in the the last vertex of the intersection
+                    if (laste3 != intersection[size-1]) {
+                        continue;
+                    }
+                    // Check if contains all the intersection
+                    bool contains_all = true;
+                    for (int l = 1; l < size - 1; l++){
+                        //probably optimizable with a linear search
+                        if (!contains_vertex(dirH, e3,intersection[l])){
+                            contains_all = false;
+                            break;
+                        }
+                    }
+                    if (contains_all) {
+                        extended_stars -= 1;
+                    }
+                }
+
+                //Finally, If the last in the intersection is also last for e1 or e2 we need to consider the hyperedges starting from it
+                //Those hyperedges must not intersect with intersect
+                VertexId laste1 = dirH.ed_vertices[dirH.edge_offsets[e1] + dirH.edge_sizes[e1] - 1];
+                VertexId laste2 = dirH.ed_vertices[dirH.edge_offsets[e2]+ dirH.edge_sizes[e2] - 1];
+                VertexId lastint = intersection[size-1];
+                if(laste1!=lastint && laste2 != lastint) {
+                    continue;
+                }
+                for (EdgeId k = dirH.vertex_offset[lastint]; k < dirH.vertex_offset[lastint] + dirH.outdegrees[lastint]; k++){
+                    EdgeId e3 = dirH.ve_hyperedges[k];
+                    if(e3 ==  e1 || e3==e2){
+                        continue;
+                    }
+                    // Check if does not intersect with intersect
+                    bool contains_any = false;
+                    // for (int l = 0; l < size - 1; l++){
+                    //     //probably optimizable with a linear search
+                    //     if (contains_vertex(dirH, e3,intersection[l])){
+                    //         contains_any = true;
+                    //         break;
+                    //     }
+                    // }
+                    auto pint = 0, pint_end = size - 1;
+                    auto p3 = dirH.edge_offsets[e3], p3_end = p3 + dirH.edge_sizes[e3];
+                    while (pint < pint_end && p3 < p3_end){
+                        VertexId v3 = dirH.ed_vertices[p3];
+                        VertexId vint = intersection[pint];
+                        if (v3 == vint){
+                            contains_any = true;
+                            break;
+                        }
+                        if(v3 < vint){
+                            p3++;
+                        } else {
+                            pint++;
+                        }
+
+                    }
+                    if(!contains_any){
+                        extended_stars++;
+                    }
+                }
+                delete[] intersection;
+            }
+        }
+    }
+
+    //Count the stars and extended stars that do not contain an endpoint
     for (VertexId v = 0 ; v < dirH.num_vertices; v++) {
         for (EdgeId i = dirH.vertex_offset[v]; i < dirH.vertex_offset[v] + dirH.outdegrees[v]; i++){
             for (EdgeId j = i+1; j < dirH.vertex_offset[v] + dirH.outdegrees[v]; j++){
@@ -310,27 +419,28 @@ std::tuple<EdgeId, EdgeId> getTotalStarCount(DirHypergraphCSR& dirH) {
                     VertexId laste2 = dirH.ed_vertices[dirH.edge_offsets[e2]+ dirH.edge_sizes[e2] - 1];
                     VertexId laste3 = dirH.ed_vertices[dirH.edge_offsets[e3] + dirH.edge_sizes[e3] - 1];
 
-                    //int mult = triple_intersection_source(dirH, e1,e2,e3);
+                    //Check that v is the first common vertex in e1,e2,e3
                     auto result = triple_intersection_source(dirH, e1,e2,e3, v);
-                    bool valid_source = result.first;
+                    Containment c = result.first;
                     TripleIntersections res = result.second;
-                    if(!valid_source){
+                    if(!c.source_intersect){
                         continue;
                     }
-                    bool e1contained = contains_vertex(dirH, e2, laste1) && contains_vertex(dirH, e3, laste1);
-                    bool e2contained = contains_vertex(dirH, e1, laste2) && contains_vertex(dirH, e3, laste2);                    
-                    bool e3contained = contains_vertex(dirH, e1, laste3) && contains_vertex(dirH, e2, laste3);
+                    // bool e1contained = contains_vertex(dirH, e2, laste1) && contains_vertex(dirH, e3, laste1);
+                    // bool e2contained = contains_vertex(dirH, e1, laste2) && contains_vertex(dirH, e3, laste2);                    
+                    // bool e3contained = contains_vertex(dirH, e1, laste3) && contains_vertex(dirH, e2, laste3);
 
-                    if(res.i12_not3 != 0 && (!e3contained)) {
+                    if(res.i12_not3 != 0 && (!c.e3contained)) {
                         extended_stars += 1;
                     }
-                    if(res.i23_not1 != 0 && (!e1contained)) {
+                    if(res.i23_not1 != 0 && (!c.e1contained)) {
                         extended_stars += 1;
                     }
-                    if(res.i31_not2 != 0 && (!e2contained)) {
+                    if(res.i31_not2 != 0 && (!c.e2contained)) {
                         extended_stars += 1;
                     }
-                    if ((!e1contained) && (!e2contained) && (!e3contained)){
+                    //check that the last vertex of each edge is not in the common zone.
+                    if ((!c.e1contained) && (!c.e2contained) && (!c.e3contained)){
                         stars += 1;
                     }
                 }
@@ -338,79 +448,11 @@ std::tuple<EdgeId, EdgeId> getTotalStarCount(DirHypergraphCSR& dirH) {
         }
     }
 
-    for (VertexId v = 0 ; v < dirH.num_vertices; v++) {
-        for (EdgeId i = dirH.vertex_offset[v]; i < dirH.vertex_offset[v] + dirH.outdegrees[v]; i++){
-            EdgeId e1 = dirH.ve_hyperedges[i];
-            for (EdgeId j = i+1; j < dirH.vertex_offset[v] + dirH.outdegrees[v]; j++){
-                    EdgeId e2 = dirH.ve_hyperedges[j];
-                    int min = std::min(dirH.edge_sizes[e1], dirH.edge_sizes[e2]);
-                    VertexId* intersection = new VertexId[min];
-                    int size = edge_intersection(dirH,e1,e2, intersection);
-                    //Verify it is the ``source'' of the intersection and has more than 1 vertex in the intersection
-                    if(intersection[0] != v || size==1){
-                        continue;
-                    }
-                    //Add the indegrees of all vertices
-                    for (int k = 0; k < size; k++){
-                        extended_stars += indegrees[intersection[k]];
-                    }
-                    //For the last  vertex we need to compute the number of edges ending on it that contain the intersection and substract them from the count.
-                    for (EdgeId k = dirH.vertex_offset[v]; k < dirH.vertex_offset[v] + dirH.outdegrees[v]; k++){
-                        EdgeId e3 = dirH.ve_hyperedges[k];
-                        VertexId laste3 = dirH.ed_vertices[dirH.edge_offsets[e3] + dirH.edge_sizes[e3] - 1];
-                        // Check edge ends in the the last vertex of the intersection
-                        if (laste3 != intersection[size-1]) {
-                            continue;
-                        }
-                        // Check if contains all the intersection
-                        bool contains_all = true;
-                        for (int l = 1; l < size - 1; l++){
-                            //probably optimizable with a linear search
-                            if (!contains_vertex(dirH, e3,intersection[l])){
-                                contains_all = false;
-                                break;
-                            }
-                        }
-                        if (contains_all) {
-                            extended_stars -= 1;
-                        }
-                    }
-
-                    //Finally, If the last in the intersection is also last for e1 or e2 we need to consider the hyperedges starting from it
-                    //Those hyperedges must not intersect with intersect
-                    VertexId laste1 = dirH.ed_vertices[dirH.edge_offsets[e1] + dirH.edge_sizes[e1] - 1];
-                    VertexId laste2 = dirH.ed_vertices[dirH.edge_offsets[e2]+ dirH.edge_sizes[e2] - 1];
-                    VertexId lastint = intersection[size-1];
-                    if(laste1!=lastint && laste2 != lastint) {
-                        continue;
-                    }
-                    for (EdgeId k = dirH.vertex_offset[lastint]; k < dirH.vertex_offset[lastint] + dirH.outdegrees[lastint]; k++){
-                        EdgeId e3 = dirH.ve_hyperedges[k];
-                        if(e3 ==  e1 || e3==e2){
-                            continue;
-                        }
-                        // Check if does not intersect with intersect
-                        bool contains_any = false;
-                        for (int l = 0; l < size - 1; l++){
-                            //probably optimizable with a linear search
-                            if (contains_vertex(dirH, e3,intersection[l])){
-                                contains_any = true;
-                                break;
-                            }
-                        }
-                        if(!contains_any){
-                            extended_stars++;
-                        }
-                    }
-                    delete[] intersection;
-            }
-        }
-    }
     delete[] indegrees;
     return {stars, extended_stars};
 }
 
-//Check if e1 contains e2
+//Check if e1 contains all e2
 bool edge_contains_edge(DirHypergraphCSR& dirH, EdgeId e1, EdgeId e2){
     VertexId p1 = dirH.edge_offsets[e1];
     VertexId p2 = dirH.edge_offsets[e2];
@@ -431,6 +473,7 @@ bool edge_contains_edge(DirHypergraphCSR& dirH, EdgeId e1, EdgeId e2){
     return true;
 }
 
+//Checks if v is the first vertex in the intersection of e1 and e2
 bool isCommonSource(DirHypergraphCSR& dirH,VertexId v,EdgeId e1, EdgeId e2) {
     VertexId p1 = dirH.edge_offsets[e1];
     VertexId p2 = dirH.edge_offsets[e2];
@@ -449,35 +492,12 @@ bool isCommonSource(DirHypergraphCSR& dirH,VertexId v,EdgeId e1, EdgeId e2) {
     return false;
 }
 
+
 void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
 
-
-
-    //First we reorder the edges in buckets depending on their size
-    // int max_size = 0;
-    // for (EdgeId e = 0; e < dirH.num_hyperedges; e++){
-    //     if(dirH.edge_sizes[e]>max_size) max_size = dirH.edge_sizes[e];
-    // }
-    // int* bucket_sizes = new int[max_size+1]();
-    // for (EdgeId e = 0; e < dirH.num_hyperedges; e++){
-    //     bucket_sizes[dirH.edge_sizes[e]]++;
-    // }
-    // int* bucket_offsets = new int[max_size+1]();
-    // int* bucket_counter = new int[max_size+1]();
-    // EdgeId* edges = new EdgeId[dirH.num_hyperedges];
-
-    // int total_offset = 0;
-    // for (int i = 0; i <= max_size; i++){
-    //     bucket_offsets[i] = total_offset;
-    //     total_offset += bucket_sizes[i];
-    // }
-
-    // for (EdgeId e = 0; e < dirH.num_hyperedges; e++){
-    //     int size = dirH.edge_sizes[e];
-    //     edges[bucket_offsets[size]+bucket_counter[size]] = e;
-    //     bucket_counter[size]++;
-    // }
-
+    clock_t stop;
+    clock_t prev;
+    prev = clock();
 
     EdgeId* singletonmap = new EdgeId[dirH.num_vertices]();
     bool* singletonmapped = new bool[dirH.num_vertices]();
@@ -506,6 +526,10 @@ void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
         }
     }
 
+    stop = clock();
+    std::cout << "Contaiment tree: " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
+    std::cout << "------------------------------------------------------" << std::endl << std::endl;
+
     EdgeId* indegrees = new EdgeId[dirH.num_vertices]();
     for(EdgeId e =0; e < dirH.num_hyperedges; e++){
         if(dirH.edge_sizes[e]==1){
@@ -519,20 +543,15 @@ void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
         }
     }
 
-    // for (EdgeId e = 0; e < dirH.num_hyperedges; e++){
-    //     int size = dirH.edge_sizes[e];
-    //     for(EdgeId i = 0; i < bucket_offsets[size]; i++){
-    //         if(edge_contains_edge(dirH,e,edges[i])){
-    //             children[e].push_back(edges[i]);
-    //             parents[edges[i]].push_back(e);
-    //         }
-    //     }
-    // }
-
     //Type 1
     for (EdgeId e = 0; e < dirH.num_hyperedges; e++){
         counts[0] += children[e].size() * parents[e].size();
     }
+
+    prev = stop;
+    stop = clock();
+    std::cout << "type1: " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
+    std::cout << "------------------------------------------------------" << std::endl << std::endl;
 
     //Types 2-5
     for (EdgeId e = 0; e < dirH.num_hyperedges; e++){
@@ -559,29 +578,38 @@ void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
             }
         }
     }
+
+    prev = stop;
+    stop = clock();
+    std::cout << "type 2-5: " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
+    std::cout << "------------------------------------------------------" << std::endl << std::endl;
+
     //types 6-8
     
+    //For every hyperedge e1
     for (EdgeId e1 = 0; e1 < dirH.num_hyperedges; e1++){
         if(dirH.edge_sizes[e1]== 1){
             continue;
         }
 
-
+        //Get the number of hyperedges ending in e1 (this includes e1 itself)
         VertexId outdegree_sum = 0; 
         for(VertexId iv1 = dirH.edge_offsets[e1]; iv1 < dirH.edge_offsets[e1] +  dirH.edge_sizes[e1]; iv1++){
             VertexId v1 = dirH.ed_vertices[iv1];
             outdegree_sum += indegrees[v1];
         }
 
-
+        //For every hyperedge e2 that fully contains e1
         for(int ie2 = 0; ie2 < parents[e1].size(); ie2++) {
             VertexId redundant = 0;
             EdgeId e2 = parents[e1][ie2];
             VertexId e2end = dirH.ed_vertices[dirH.edge_offsets[e2]+ dirH.edge_sizes[e2] - 1];
 
+            //For every v1 vertex in e2
             for(VertexId iv1 = dirH.edge_offsets[e2]; iv1 < dirH.edge_offsets[e2] +  dirH.edge_sizes[e2]; iv1++){
                 VertexId v1 = dirH.ed_vertices[iv1];
 
+                //For every edge starting in v1
                 for(EdgeId ie3= dirH.vertex_offset[v1]; ie3 < dirH.vertex_offset[v1] + dirH.outdegrees[v1]; ie3++) {
                     EdgeId e3 = dirH.ve_hyperedges[ie3];
                     if(e3 == e1 || e3==e2) {
@@ -605,18 +633,19 @@ void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
                 }
             } 
 
-             if (contains_vertex(dirH, e1, e2end)) {
+            if (contains_vertex(dirH, e1, e2end)) {
                 redundant += 1;
             }
+            
             counts[5] += outdegree_sum - redundant - 1;
         }
     }
 
+    prev = stop;
+    stop = clock();
+    std::cout << "type 6-8: " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
+    std::cout << "------------------------------------------------------" << std::endl << std::endl;
 
-    // delete[] bucket_sizes;
-    // delete[] bucket_offsets;
-    // delete[] bucket_counter;
-    // delete[] edges;
     delete[] indegrees;
 }
 
@@ -701,7 +730,7 @@ void count_hypertriangles_flexible(DirHypergraphCSR& dirH, EdgeId* counts){
         EdgeId ie2end = dirH.vertex_offset[v]+dirH.outdegrees[v];
         EdgeId ie1end = ie2end-1;
         for(EdgeId ie1 = dirH.vertex_offset[v]; ie1 < ie1end; ie1++) {
-                EdgeId e1 = dirH.ve_hyperedges[ie1];
+            EdgeId e1 = dirH.ve_hyperedges[ie1];
             for (EdgeId ie2 = ie1+1; ie2 < ie2end; ie2++) {
                 EdgeId e2 = dirH.ve_hyperedges[ie2];
 
@@ -761,8 +790,6 @@ void count_hypertriangles_flexible(DirHypergraphCSR& dirH, EdgeId* counts){
                             } else {
                                 e3_extends = false;
                             }
-
-
 
                             int tot = (e1_extends? 0 : 1) + (e2_extends? 0 : 1) + (e3_extends? 0 : 1);
                             if (tot < 2) continue;
