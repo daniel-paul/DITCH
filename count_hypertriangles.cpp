@@ -5,7 +5,6 @@
 #include <cassert>
 #include <algorithm>
 #include <tuple>
-#include <ctime>
 
 struct TripleIntersections {
     int i12_not3 = 0;  // |e1 ∩ e2 \ e3|
@@ -495,10 +494,6 @@ bool isCommonSource(DirHypergraphCSR& dirH,VertexId v,EdgeId e1, EdgeId e2) {
 
 void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
 
-    clock_t stop;
-    clock_t prev;
-    prev = clock();
-
     EdgeId* singletonmap = new EdgeId[dirH.num_vertices]();
     bool* singletonmapped = new bool[dirH.num_vertices]();
 
@@ -526,10 +521,6 @@ void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
         }
     }
 
-    stop = clock();
-    std::cout << "Contaiment tree: " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
-    std::cout << "------------------------------------------------------" << std::endl << std::endl;
-
     EdgeId* indegrees = new EdgeId[dirH.num_vertices]();
     for(EdgeId e =0; e < dirH.num_hyperedges; e++){
         if(dirH.edge_sizes[e]==1){
@@ -548,12 +539,7 @@ void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
         counts[0] += children[e].size() * parents[e].size();
     }
 
-    prev = stop;
-    stop = clock();
-    std::cout << "type1: " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
-    std::cout << "------------------------------------------------------" << std::endl << std::endl;
-
-    //Types 2-5
+    //Type 2-3
     for (EdgeId e = 0; e < dirH.num_hyperedges; e++){
         for(int i = 0; i < parents[e].size(); i++) {
             for(int j= i+1; j < parents[e].size(); j++){
@@ -566,90 +552,37 @@ void count_contained_triangles(DirHypergraphCSR& dirH, EdgeId* counts){
                 }
             }
         }
-        for(int i = 0; i < children[e].size(); i++) {
-            for(int j= i+1; j < children[e].size(); j++){
-                EdgeId e2 = children[e][i];
-                EdgeId e3 = children[e][j];
-                auto res = triple_intersections(dirH,e,e2,e3);
-                int type = res.first;
-                if (type>1){
-                    counts[type-1]++;
-                }
-            }
-        }
     }
 
-    prev = stop;
-    stop = clock();
-    std::cout << "type 2-5: " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
-    std::cout << "------------------------------------------------------" << std::endl << std::endl;
-
-    //types 6-8
-    
+    int total_count = 0;
     //For every hyperedge e1
     for (EdgeId e1 = 0; e1 < dirH.num_hyperedges; e1++){
-        if(dirH.edge_sizes[e1]== 1){
-            continue;
-        }
 
-        //Get the number of hyperedges ending in e1 (this includes e1 itself)
-        VertexId outdegree_sum = 0; 
+        //Get the number of hyperedges intersecting e1
+        VertexId degree_sum = 0;
         for(VertexId iv1 = dirH.edge_offsets[e1]; iv1 < dirH.edge_offsets[e1] +  dirH.edge_sizes[e1]; iv1++){
             VertexId v1 = dirH.ed_vertices[iv1];
-            outdegree_sum += indegrees[v1];
-        }
-
-        //For every hyperedge e2 that fully contains e1
-        for(int ie2 = 0; ie2 < parents[e1].size(); ie2++) {
-            VertexId redundant = 0;
-            EdgeId e2 = parents[e1][ie2];
-            VertexId e2end = dirH.ed_vertices[dirH.edge_offsets[e2]+ dirH.edge_sizes[e2] - 1];
-
-            //For every v1 vertex in e2
-            for(VertexId iv1 = dirH.edge_offsets[e2]; iv1 < dirH.edge_offsets[e2] +  dirH.edge_sizes[e2]; iv1++){
-                VertexId v1 = dirH.ed_vertices[iv1];
-
-                //For every edge starting in v1
-                for(EdgeId ie3= dirH.vertex_offset[v1]; ie3 < dirH.vertex_offset[v1] + dirH.outdegrees[v1]; ie3++) {
-                    EdgeId e3 = dirH.ve_hyperedges[ie3];
-                    if(e3 == e1 || e3==e2) {
-                        continue;
-                    }
-
-                    //Check that v1 is the first vertex in the intersection of e2 and e3
-                    //This ensures e3 is only counted once with e1 and e2
-                    if(!isCommonSource(dirH,v1,e2,e3)){
-                        continue;
-                    }
-                    auto res = triple_intersections(dirH,e1,e2,e3);
-                    int type = res.first;
-                    if(type>5) {
-                        counts[type-1]++;
-                    }
-                    VertexId e3end = dirH.ed_vertices[dirH.edge_offsets[e3]+ dirH.edge_sizes[e3] - 1];
-                    if (contains_vertex(dirH, e1, e3end)) {
-                        redundant += 1;
-                    }
-                }
-            } 
-
-            if (contains_vertex(dirH, e1, e2end)) {
-                redundant += 1;
+            degree_sum += indegrees[v1];
+            if(singletonmapped[v1]){
+                degree_sum += 1;
             }
-            
-            counts[5] += outdegree_sum - redundant - 1;
+            for(EdgeId ie2 = dirH.vertex_offset[v1]; ie2 < dirH.vertex_offset[v1] + dirH.outdegrees[v1]; ie2++){
+                EdgeId e2 = dirH.ve_hyperedges[ie2];
+                //check that v1 is the first vertex in the intersection of e1-e2 and e2 does not end in e1
+                if(!isCommonSource(dirH,v1,e1,e2)) continue;
+
+                VertexId laste2 = dirH.ed_vertices[dirH.edge_offsets[e2] + dirH.edge_sizes[e2] - 1];
+                if(contains_vertex(dirH,e1,laste2)) continue;
+                degree_sum += 1;
+            }
+
         }
+        total_count += (degree_sum-2) * parents[e1].size();
     }
-
-    prev = stop;
-    stop = clock();
-    std::cout << "type 6-8: " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
-    std::cout << "------------------------------------------------------" << std::endl << std::endl;
-
-    delete[] indegrees;
+    counts[5] = total_count - counts[6] - counts[7] - 2*(counts[1] + counts[2] + counts[3]+counts[4]) - 3* (counts[0]);
 }
 
-std::tuple<bool, int,TripleIntersections> triple_intersections_check(const DirHypergraphCSR& H,
+std::tuple<bool, int> triple_intersections_check(const DirHypergraphCSR& H,
                                         EdgeId e1, EdgeId e2, EdgeId e3,
                                         VertexId v12, VertexId v13, VertexId v23,
                                         int which_edge) {
@@ -682,27 +615,27 @@ std::tuple<bool, int,TripleIntersections> triple_intersections_check(const DirHy
             ++res.i123;
             if(first_v123){
                 first_v123 = false;
-                if(which_edge == 1 && minv!=v23) return {false,type, res};
-                if(which_edge == 2 && minv!=v13) return {false,type, res};
-                if(which_edge == 3 && minv!=v12) return {false,type, res};
+                if(which_edge == 1 && minv!=v23) return {false,type};
+                if(which_edge == 2 && minv!=v13) return {false,type};
+                if(which_edge == 3 && minv!=v12) return {false,type};
             }
         } else if (in1 & in2) {               // e1 ∩ e2
             ++res.i12_not3;
             if(first_v12){
                 first_v12 = false;
-                if(which_edge != 3 && minv != v12) return {false,type, res};
+                if(which_edge != 3 && minv != v12) return {false,type};
             }
         } else if (in2 & in3) {               // e2 ∩ e3
             ++res.i23_not1;
             if(first_v23){
                 first_v23 = false;
-                if(which_edge != 1 && minv != v23) return {false,type, res};
+                if(which_edge != 1 && minv != v23) return {false,type};
             }
         } else if (in1 & in3) {               // e1 ∩ e3
             ++res.i31_not2;
             if(first_v13){
                 first_v13 = false;
-                if(which_edge != 2 && minv != v13) return {false,type, res};
+                if(which_edge != 2 && minv != v13) return {false,type};
             }
         }
 
@@ -715,14 +648,13 @@ std::tuple<bool, int,TripleIntersections> triple_intersections_check(const DirHy
     res.i3_not12 = H.edge_sizes[e3] - res.i31_not2 - res.i23_not1 - res.i123;
     type = findType(res);
 
-    return {true, type, res};
+    return {true, type};
 }
 
 
 
 void count_hypertriangles_flexible(DirHypergraphCSR& dirH, EdgeId* counts){
 
-    std::unordered_map<long long, long long> freq[20];
     bool e1_extends, e2_extends, e3_extends;
     //Loop for starting vertices
     for (VertexId v = 0; v < dirH.num_vertices; v++){
@@ -800,33 +732,20 @@ void count_hypertriangles_flexible(DirHypergraphCSR& dirH, EdgeId* counts){
                                 else which_edge = 3;
                             }
 
-                            std::tuple<bool,int,TripleIntersections> out = triple_intersections_check(dirH,e1,e2,e3,v,w1,w2,which_edge);
+                            std::tuple<bool,int> out = triple_intersections_check(dirH,e1,e2,e3,v,w1,w2,which_edge);
                             bool valid = std::get<0>(out);
                             int type = std::get<1>(out);
-                            // TripleIntersections res = std::get<2>(out);
-                            if(!valid){
-                                continue;
-                            }
-                            int mult=0;
-                            if(tot==3) {
-                                mult = 1;
-                            } else if(tot==2){
-                                if(type != 11 && type != 12) continue;
-                                mult = 1;
-                            }
-                            freq[type-1][mult]++;
+
+                            if(!valid) continue;
+                            counts[type-1] += 1;
                         }
                     }
                 }
             }
         }
     }
-    for (int i = 10; i <= 20; i++){
-        VertexId count = 0;
-        for(auto &kv : freq[i-1]) {
-            count += kv.second / kv.first;
-        }
-        counts[i-1] = count; 
+    for (int i = 13; i <= 16; i++){
+        counts[i-1] = counts[i-1]/4; 
     }
 }
 
