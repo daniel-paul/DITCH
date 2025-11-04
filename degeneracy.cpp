@@ -51,6 +51,9 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
 
     dirH.num_vertices = H.num_vertices;
     dirH.num_hyperedges = H.num_hyperedges;
+    dirH.n_children = new EdgeId[dirH.num_hyperedges];
+    dirH.n_parents = new EdgeId[dirH.num_hyperedges];
+    dirH.edge_intersections = new EdgeId[dirH.num_hyperedges];
 
     //Create degeneracy ordering
 
@@ -122,13 +125,6 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
             }
         }
     }
-
-    //some cleanup
-    // delete[] bucket_sizes;
-    // for (EdgeId d = 0; d <= max_degree; ++d) {
-    //     delete[] buckets[d];   // free each inner array
-    // }
-    // delete[] buckets;
     delete[] deletedEdges;
     delete[] deletedVertices;
     delete[] degrees;

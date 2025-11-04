@@ -19,6 +19,7 @@ void read_hypergraph(HypergraphCSR& H, const std::string& filename) {
 
     H.num_vertices = 0;
     H.num_hyperedges = 0;
+    int rank = 0;
 
     while (std::getline(infile, line)) {
         if (!line.empty()) {
@@ -30,8 +31,11 @@ void read_hypergraph(HypergraphCSR& H, const std::string& filename) {
             total_vertices += count;
             H.num_hyperedges++;
             if (v + 1 > H.num_vertices) H.num_vertices = v + 1;
+            if (rank < count) rank = count;
         }
     }
+    std::cout << "Rank: " << rank << "\n";
+    std::cout << "Average arity: "<< total_vertices/(H.num_hyperedges+0.0) << "\n";
     
     // Allocate arrays
     H.ed_vertices = new VertexId[total_vertices];

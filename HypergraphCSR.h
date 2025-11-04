@@ -29,6 +29,8 @@ struct HypergraphCSR {
         delete[] degrees;
         delete[] ve_hyperedges;
     }
+
+    void compute_sum_degrees();
 };
 
 struct DirHypergraphCSR {
@@ -47,6 +49,11 @@ struct DirHypergraphCSR {
     EdgeId*   ve_hyperedges = nullptr;   // Concatenated hyperedges for all vertices
     VertexId* vertex_hyperedges_pos = nullptr; //vertex v takes the vertex_hyperedges_pos[i] of the hyperedge in ve_hyperedges[i] for i \in [vertex_offset[v],vertex_offset[v+1]]
 
+    //Auxiliary arrays to store edge-degrees
+    EdgeId* edge_intersections = nullptr;
+    EdgeId* n_parents = nullptr;
+    EdgeId* n_children = nullptr;
+
     // Default constructor
     DirHypergraphCSR() = default;
 
@@ -59,8 +66,17 @@ struct DirHypergraphCSR {
         delete[] outdegrees;
         delete[] ve_hyperedges;
         delete[] vertex_hyperedges_pos;
+        delete[] edge_intersections;
+        delete[] n_parents;
+        delete[] n_children;
     }
+
+    void compute_edge_degrees();
+    void compute_sum_outdegrees();
+    bool isCommonSource(VertexId v,EdgeId e1, EdgeId e2);
+    bool contains_vertex(EdgeId e, VertexId v);
 };
 
-bool contains_vertex(const DirHypergraphCSR& H, EdgeId e, VertexId v);
+
+VertexId contains_vertex_return_pos(const DirHypergraphCSR& H, EdgeId e, VertexId v);
 void print_edge(const DirHypergraphCSR& dirH, EdgeId e);
