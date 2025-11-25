@@ -5,31 +5,28 @@
 #include "degeneracy.h"
 #include "types.h"
 #include "HypergraphCSR.h"
-#include "count_hypertriangles.h"
+#include "count_patterns.h"
 #include <ctime>
 #include <tuple>
 
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <hypergraph_file> <c(ount)/e(numerate)/(p)aths>\n";
-        return 1;
-    }
-    bool enumerate = false;
-    bool paths = false;
-    std::string mode = argv[2];
-    if (mode == "c") {
-      enumerate = false;
-    } else if (mode == "e"){
-      enumerate = true;
-    } else if (mode == "p") {
-      enumerate = false;
-      paths = true;
-    } else {
-      std::cerr << "Usage: " << argv[0] << " <hypergraph_file> <c(ount)/e(numerate)>\n";
+        std::cerr << "Usage: " << argv[0] << " <hypergraph_file> <c(losed)/a(ll)>\n";
         return 1;
     }
 
+    //Mode selector c for only patterns 1-20, a computes also patterns 21-26
+    bool all_patterns = false;
+    std::string mode = argv[2];
+    if (mode == "c") {
+      all_patterns = false;
+    } else if (mode == "a"){
+      all_patterns = true;
+    } else {
+      std::cerr << "Usage: " << argv[0] << " <hypergraph_file> <c(losed)/a(ll)>\n";
+        return 1;
+    }
 
     clock_t start;
     clock_t stop;
@@ -51,6 +48,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Read hypergraph and created adjacency lists (s): "
 		<< (double)(stop - start) / CLOCKS_PER_SEC <<  std::endl;
 
+    //Compute the degeneracy ordering
     VertexId* ordering = new VertexId[H.num_vertices]();
     compute_degeneracy_ordering(dirH, H, ordering);
     prev = stop;
@@ -59,53 +57,48 @@ int main(int argc, char* argv[]) {
 
     EdgeId* counts = new EdgeId[26]();
 
+    //Compute statistics for the hypergraph
     H.compute_sum_degrees();
     dirH.compute_sum_outdegrees();
 
-    if(enumerate){
-    count_hypertriangles(dirH, counts);
-    // prev = stop;
-    // stop = clock();
-    // std::cout << "Computed trimmed-triangle based hypertriangles (13-20): " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
-    // std::cout << "------------------------------------------------------" << std::endl << std::endl;
-    
+    //Compute the hyperedge degrees
+    dirH.compute_edge_degrees();
+    prev = stop;
+    stop = clock();
+    std::cout << "Computed edge_degrees (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
 
-    count_hypertriangles_dense(H, dirH, counts);
-      // prev = stop;
-      // stop = clock();
-      // std::cout << "Computed star-based hypertriangles (1-16): " << (double)(stop - prev) / CLOCKS_PER_SEC << " sec" << std::endl;
-      // std::cout << "------------------------------------------------------" << std::endl << std::endl;
-    }else{
-      dirH.compute_edge_degrees();
+    //Compute the triangle based patterns
+    count_triangle_based_patterns(dirH,counts);
+    prev = stop;
+    stop = clock();
+    std::cout << "Computed triangle based patterns (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
+
+    //Compute closed contained patterns
+    count_closed_contained_patterns(dirH,counts);
+    prev = stop;
+    stop = clock();
+    std::cout << "Computed closed contained patterns (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
+
+    //Compute the number of stars and extended stars
+    std::tuple<EdgeId, EdgeId> stars = count_stars(dirH);
+    //Compute the counts of patterns 9 and 10
+    compute_final_counts(stars, counts);
+    prev = stop;
+    stop = clock();
+    std::cout << "Computed stars and extended stars (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
+
+    if(all_patterns) {
+      //Compute open patterns
+      compute_open_patterns(dirH, counts);
       prev = stop;
       stop = clock();
-      std::cout << "Computed edge_degrees (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
-      count_hypertriangles_flexible(dirH,counts);
-      prev = stop;
-      stop = clock();
-      std::cout << "Computed trimmed-triangles and quasi-trimmed-triangles (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
-
-      count_contained_triangles(dirH,counts);
-      prev = stop;
-      stop = clock();
-      std::cout << "Computed contained hypertriangles (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
-
-      std::tuple<EdgeId, EdgeId> stars = getTotalStarCount(dirH);
-      compute_final_counts(stars, counts);
-      prev = stop;
-      stop = clock();
-      std::cout << "Computed total weighted count of stars (1-16) and extended stars (1,3-8,10-16) (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
-
-      if(paths) {
-        compute_non_hypertriangles(dirH, counts);
-        prev = stop;
-        stop = clock();
-        std::cout << "Computed non-triangles (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
-      }
+      std::cout << "Computed open patterns (s): " << (double)(stop - prev) / CLOCKS_PER_SEC << std::endl;
     }
+
+    //Print the counts
     stop = clock();
     std::cout <<"Counts: \n";
-    if(!paths){
+    if(!all_patterns){
       for (int i = 1; i <= 20; i++){
         std::cout << i<<"\t" << counts[i-1]<< "\n";
       }
