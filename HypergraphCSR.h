@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include <vector>
+#include <string>
 
 struct HypergraphCSR {
     // Number of vertices and hyperedges
@@ -30,7 +31,7 @@ struct HypergraphCSR {
         delete[] ve_hyperedges;
     }
 
-    void compute_sum_degrees();
+    void compute_degrees(const std::string& output);
 };
 
 struct DirHypergraphCSR {
@@ -72,7 +73,7 @@ struct DirHypergraphCSR {
     }
 
     void compute_edge_degrees();
-    void compute_sum_outdegrees();
+    void compute_outdegrees(const std::string& output);
     bool isCommonSource(VertexId v,EdgeId e1, EdgeId e2);
     bool contains_vertex(EdgeId e, VertexId v);
 };

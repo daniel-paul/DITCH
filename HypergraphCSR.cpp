@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <vector>
 #include <iostream>
+#include <map>
+#include <fstream>
+#include <string>
 
 VertexId contains_vertex_return_pos(const DirHypergraphCSR& H, EdgeId e, VertexId v) {
     for(VertexId i = 0; i < H.edge_sizes[e]; i++){
@@ -18,19 +21,53 @@ void print_edge(const DirHypergraphCSR& dirH, EdgeId e){
         std::cout<<"\n";
 }
 
-void HypergraphCSR::compute_sum_degrees() {
+void HypergraphCSR::compute_degrees(const std::string& output) {
     EdgeId count = 0;
+    std::map<EdgeId, size_t> freq;
+    
     for(VertexId v = 0; v < num_vertices; v++){
-        count += degrees[v]*degrees[v]*degrees[v];
+        EdgeId degree = degrees[v];
+        count += degree*degree*degree;
+        freq[degree]++;
     }
+    std::ofstream csv(output);
+    if (!csv.is_open()) {
+        std::cerr << "Error: could not open the output for writing.\n";
+        return;
+    }
+
+    csv << "degree,frequency\n";
+    for (const auto &p : freq) {
+        csv << p.first << "," << p.second << "\n";
+    }
+
+    csv.close();
+    std::cout << "Wrote degree frequencies\n";
     std::cout<<"sum of degrees cube: "<<count<<"\n";
 }
 
-void DirHypergraphCSR::compute_sum_outdegrees() {
+void DirHypergraphCSR::compute_outdegrees(const std::string& output) {
     EdgeId count = 0;
+    std::map<EdgeId, size_t> freq;
+
     for(VertexId v = 0; v < num_vertices; v++){
-        count += outdegrees[v]*outdegrees[v]*outdegrees[v];
+        EdgeId outdegree = outdegrees[v];
+        count += outdegree*outdegree*outdegree;
+        freq[outdegree]++;
     }
+    std::ofstream csv(output);
+    if (!csv.is_open()) {
+        std::cerr << "Error: could not open the output for writing.\n";
+        return;
+    }
+
+    csv << "outdegree,frequency\n";
+    for (const auto &p : freq) {
+        csv << p.first << "," << p.second << "\n";
+    }
+
+    csv.close();
+    std::cout << "Wrote outdegree frequencies\n";
     std::cout<<"sum of outdegrees cube: "<<count<<"\n";
 }
 
