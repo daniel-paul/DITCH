@@ -12,7 +12,7 @@ CXXFLAGS = -O2 -std=c++17 -Wall -Wextra
 
 SRCS = main.cpp read_hypergraph.cpp degeneracy.cpp HypergraphCSR.cpp triangles_and_contained.cpp stars.cpp open_patterns.cpp
 OBJS = $(SRCS:.cpp=.o)
-TARGET = hypertriangles_fast$(EXE)
+TARGET = ditch$(EXE)
 
 all: $(TARGET)
 
