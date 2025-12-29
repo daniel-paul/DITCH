@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 
+//Checks if vertex v is in hyperedge e, if yes returns the relative position in the CSR, if not returns -1
 VertexId contains_vertex_return_pos(const DirHypergraphCSR& H, EdgeId e, VertexId v) {
     for(VertexId i = 0; i < H.edge_sizes[e]; i++){
         if(H.ed_vertices[H.edge_offsets[e]+i] == v)
@@ -14,6 +15,7 @@ VertexId contains_vertex_return_pos(const DirHypergraphCSR& H, EdgeId e, VertexI
     return -1;
 }
 
+//For debugging, prints the vertices in a hyperedge
 void print_edge(const DirHypergraphCSR& dirH, EdgeId e){
     for(int i = dirH.edge_offsets[e]; i < dirH.edge_offsets[e]+dirH.edge_sizes[e]; i++) {
         std::cout<<dirH.ed_vertices[i]<<" ";
@@ -21,6 +23,7 @@ void print_edge(const DirHypergraphCSR& dirH, EdgeId e){
         std::cout<<"\n";
 }
 
+//Compute the degrees distribution, prints the sum of degrees cubed
 void HypergraphCSR::compute_degrees(const std::string& output) {
     EdgeId count = 0;
     std::map<EdgeId, size_t> freq;
@@ -46,6 +49,7 @@ void HypergraphCSR::compute_degrees(const std::string& output) {
     std::cout<<"sum of degrees cube: "<<count<<"\n";
 }
 
+//Computes de outdegree distribution, prints the sum of outdegrees cubed
 void DirHypergraphCSR::compute_outdegrees(const std::string& output) {
     EdgeId count = 0;
     std::map<EdgeId, size_t> freq;
@@ -71,7 +75,22 @@ void DirHypergraphCSR::compute_outdegrees(const std::string& output) {
     std::cout<<"sum of outdegrees cube: "<<count<<"\n";
 }
 
-//Gets the number of edges intersecting 
+//Computes \sum_v d^+(v)^2 d(v)
+void DirHypergraphCSR::compute_outdegree_times_degree() {
+    EdgeId count = 0;
+    EdgeId* indegrees = new EdgeId[num_vertices]();
+    for(EdgeId e =0; e < num_hyperedges; e++){
+        indegrees[ed_vertices[edge_offsets[e]+edge_sizes[e]-1]]++;
+    }
+
+    for(VertexId v = 0; v < num_vertices; v++){
+        EdgeId outdegree = outdegrees[v];
+        count += outdegree*outdegree*(outdegree+indegrees[v]);
+    }
+    std::cout<<"sum of outdegrees squared times degree: "<<count<<"\n";
+}
+
+//Gets the number of edges intersecting each hyperedge
 void DirHypergraphCSR::compute_edge_degrees() {
     //Compute indegrees
     EdgeId* indegrees = new EdgeId[num_vertices]();
@@ -121,6 +140,7 @@ bool DirHypergraphCSR::isCommonSource(VertexId v,EdgeId e1, EdgeId e2) {
     return false;
 }
 
+//Checks if vertex v is in e
 bool DirHypergraphCSR::contains_vertex(EdgeId e, VertexId v) {
     VertexId* begin = &ed_vertices[edge_offsets[e]];
     VertexId* end   = begin + edge_sizes[e];

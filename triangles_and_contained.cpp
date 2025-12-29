@@ -22,6 +22,7 @@ int findType(TripleIntersections res) {
                 case 1: return 18;
                 case 2: return 19;
                 case 3: return 20;
+                default: return 0;
             }
         }
         //Open patterns
@@ -37,6 +38,7 @@ int findType(TripleIntersections res) {
                             return 25;
                         return 24;
                 case 3: return 26;
+                default: return 0;
             }
         }
     } 
@@ -50,6 +52,7 @@ int findType(TripleIntersections res) {
                 case 1: return 14;
                 case 2: return 15;
                 case 3: return 16;
+                default: return 0;
             }
         //2 Blue
         case 2:
@@ -65,6 +68,7 @@ int findType(TripleIntersections res) {
                         return 11;
                     return 8;
                 case 3: return 12;
+                default: return 0;
             }
         //1 Blue
         case 1:
@@ -76,6 +80,7 @@ int findType(TripleIntersections res) {
                         return 3;
                     return 6;
                 case 3: return 10;
+                default: return 0;
             }
         //0 Blue
         case 0:
@@ -84,6 +89,7 @@ int findType(TripleIntersections res) {
                 case(1): return 0;
                 case(2): return 2;
                 case(3): return 9;
+                default: return 0;
             }
         }
     }
@@ -161,12 +167,14 @@ bool edge_contains_edge(DirHypergraphCSR& dirH, EdgeId e1, EdgeId e2){
     return true;
 }
 
+//Computes the intersection regions of e1,e2,e3. It simultaneusly checks that the vertices correspond
+//with the signatures of the triplet and performs early termination when possible
 std::tuple<bool, int> triple_intersections_check(const DirHypergraphCSR& H,
                                         EdgeId e1, EdgeId e2, EdgeId e3,
                                         VertexId v12, VertexId v13, VertexId v23,
                                         int which_edge) {
     TripleIntersections res;
-    int type;
+    int type = 0;
     bool first_v12 = true;
     bool first_v13 = true;
     bool first_v23 = true;
@@ -231,7 +239,10 @@ std::tuple<bool, int> triple_intersections_check(const DirHypergraphCSR& H,
 }
 
 
-
+//--------------------------------------------------------------------------------------------------------
+//MAIN FUNCTIONS
+//--------------------------------------------------------------------------------------------------------
+//This function obtains the counts of triangle based patterns
 void count_triangle_based_patterns(DirHypergraphCSR& dirH, EdgeId* counts){
 
     bool e1_extends, e2_extends, e3_extends;
@@ -318,7 +329,7 @@ void count_triangle_based_patterns(DirHypergraphCSR& dirH, EdgeId* counts){
     }
 }
 
-
+//This function obtains the counts of patterns 1,2,3 and 6
 void count_closed_contained_patterns(DirHypergraphCSR& dirH, EdgeId* counts){
 
     EdgeId* singletonmap = new EdgeId[dirH.num_vertices]();
@@ -374,8 +385,8 @@ void count_closed_contained_patterns(DirHypergraphCSR& dirH, EdgeId* counts){
 
     //Type 2-3
     for (EdgeId e = 0; e < dirH.num_hyperedges; e++){
-        for(int i = 0; i < parents[e].size(); i++) {
-            for(int j= i+1; j < parents[e].size(); j++){
+        for(std::size_t i = 0; i < parents[e].size(); i++) {
+            for(std::size_t j= i+1; j < parents[e].size(); j++){
                 EdgeId e2 = parents[e][i];
                 EdgeId e3 = parents[e][j];
                 int type = triple_intersections(dirH,e,e2,e3);

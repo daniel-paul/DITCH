@@ -1,5 +1,5 @@
 ifeq ($(OS),Windows_NT)
-    CXX = C:\mingw64\bin\x86_64-w64-mingw32-g++.exe
+    CXX = g++
     RM = del /Q
     EXE = .exe
 else

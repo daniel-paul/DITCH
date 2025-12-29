@@ -57,35 +57,23 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
 
     //Create degeneracy ordering
 
-    //VertexId** buckets = new VertexId*[max_degree+1];
-    // VertexId* bucket_sizes = new VertexId[max_degree+1]();
     std::vector<std::vector<VertexId>> buckets(max_degree + 1);
-
-    // for(EdgeId d = 0; d <= max_degree; ++d) {
-    //     //buckets[d] = new VertexId[H.num_vertices]; // overallocate, at most n vertices per bucket
-    //     bucket_sizes[d] = 0;
-    // }
 
     for(VertexId v = 0; v < H.num_vertices; ++v) {
         EdgeId d = degrees[v];
         assert(d <= max_degree);
-        //buckets[d][bucket_sizes[d]++] = v;
         buckets[d].push_back(v);
     }
     EdgeId current_min_degree = 0;
 
     while(ordering_pos < H.num_vertices) {
         // find the next non-empty bucket
-        //while(current_min_degree <= max_degree && bucket_sizes[current_min_degree] == 0) {
         while(current_min_degree <= max_degree && buckets[current_min_degree].size() == 0) {
             current_min_degree++;
         }
         if(current_min_degree > max_degree) break;
         
         // take a vertex
-        // VertexId idx = --bucket_sizes[current_min_degree];
-        // assert(bucket_sizes[current_min_degree] >= 0);
-        //VertexId v = buckets[current_min_degree][idx];
         VertexId v = buckets[current_min_degree].back();
         buckets[current_min_degree].pop_back();
         assert(0 <= v && v < H.num_vertices);
@@ -112,9 +100,8 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
                     assert(0 <= u && u < H.num_vertices);
                     if(!deletedVertices[u]) {
                         degrees[u]--;
-                        //buckets[degrees[u]][bucket_sizes[degrees[u]]++] = u;
                         buckets[degrees[u]].push_back(u);
-                        if (buckets[degrees[u]].size() > H.num_vertices){
+                        if (buckets[degrees[u]].size() > static_cast<std::size_t> (H.num_vertices)){
                             std::cout<<"ERROR";
                         }
                         if (degrees[u]< current_min_degree){
@@ -138,12 +125,7 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
     EdgeId edge_offset = 0;
     for(EdgeId e=0; e< dirH.num_hyperedges; e++){
         dirH.edge_offsets[e]=edge_offset;
-        // if (H.edge_sizes[e] < 2) {
-        //     dirH.edge_sizes[e]=0;
-        // }
-        // else {
-            dirH.edge_sizes[e]=H.edge_sizes[e];
-        // }
+        dirH.edge_sizes[e]=H.edge_sizes[e];
         edge_offset += dirH.edge_sizes[e];
     }
     dirH.ed_vertices = new VertexId[edge_offset];
@@ -168,9 +150,6 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
     //Populate the CSR's
 
     for(EdgeId e=0; e< dirH.num_hyperedges; e++){
-        // if (dirH.edge_sizes[e]==0) {
-        //     continue;
-        // }
         std::vector<VertexId> indices;
         for (VertexId i = H.edge_offsets[e]; i < H.edge_offsets[e]+H.edge_sizes[e]; i++) {
             VertexId v = map[H.ed_vertices[i]];
@@ -180,9 +159,8 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
             indices.push_back(v);
         }
         std::sort(indices.begin(),indices.end());
-        for(VertexId i = 0; i < indices.size(); i++){
+        for(std::size_t i = 0; i < indices.size(); i++){
             VertexId v = indices[i];
-            assert(i + dirH.edge_offsets[e] < edge_offset);
             dirH.ed_vertices[i+dirH.edge_offsets[e]] = v;
             if(i < indices.size()-1){
                 assert(dirH.vertex_offset[v]+vertex_current[v] < vertexoffset);
@@ -200,13 +178,4 @@ void compute_degeneracy_ordering(DirHypergraphCSR& dirH, HypergraphCSR& H, Verte
     delete[] outdegrees;
     delete[] map;
     delete[] vertex_current;
-
-
-    // print degeneracy ordering
-    // std::cout << "Degeneracy ordering:" << std::endl;
-    // for (size_t i = 0; i < H.num_vertices; i++) {
-    //     std::cout << ordering[i] << " ";
-    //     std::cout << outdegrees[ordering[i]] << "\n"; 
-    // }
-    // std::cout << std::endl;
 }

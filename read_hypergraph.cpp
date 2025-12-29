@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <vector>
 
+//Reads the hypergraph from the file
 void read_hypergraph(HypergraphCSR& H, const std::string& filename) {
 
     std::ifstream infile(filename);

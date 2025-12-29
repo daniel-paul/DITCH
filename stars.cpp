@@ -214,10 +214,6 @@ std::tuple<EdgeId, EdgeId> count_stars(DirHypergraphCSR& dirH) {
                     EdgeId e2 = dirH.ve_hyperedges[j];
                     EdgeId e3 = dirH.ve_hyperedges[k];
 
-                    VertexId laste1 = dirH.ed_vertices[dirH.edge_offsets[e1] + dirH.edge_sizes[e1] - 1];
-                    VertexId laste2 = dirH.ed_vertices[dirH.edge_offsets[e2]+ dirH.edge_sizes[e2] - 1];
-                    VertexId laste3 = dirH.ed_vertices[dirH.edge_offsets[e3] + dirH.edge_sizes[e3] - 1];
-
                     //Check that v is the first common vertex in the intersection of e1 e2 and e3
                     auto result = triple_intersection_source(dirH, e1,e2,e3, v);
                     Containment c = result.first;

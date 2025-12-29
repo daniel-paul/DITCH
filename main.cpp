@@ -27,7 +27,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     std::string filename = argv[1];
-    std::string output = argv[3];
 
     clock_t start;
     clock_t stop;
@@ -58,8 +57,10 @@ int main(int argc, char* argv[]) {
 
     //Compute statistics for the hypergraph
     if(mode == "s"){
+      std::string output = argv[3];
       H.compute_degrees(output+"_degrees.csv");
       dirH.compute_outdegrees(output+"_outdegrees.csv");
+      dirH.compute_outdegree_times_degree();
     } else {
       //Compute the hyperedge degrees
       dirH.compute_edge_degrees();

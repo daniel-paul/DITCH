@@ -74,6 +74,7 @@ struct DirHypergraphCSR {
 
     void compute_edge_degrees();
     void compute_outdegrees(const std::string& output);
+    void compute_outdegree_times_degree();
     bool isCommonSource(VertexId v,EdgeId e1, EdgeId e2);
     bool contains_vertex(EdgeId e, VertexId v);
 };
