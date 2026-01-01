@@ -10,25 +10,16 @@ This package computes the number of hypertriangles and other motifs with three h
 
  Run ditch.exe / ditch  <hypergraph_file> <c(losed)/a(ll)/s(tatistics)> <output_file (only for s, do not include .csv)>
 
+ example call:
+ ditch.exe ./Datasets/email-Eu.csv c
+
+ or 
+
+  ditch ./Datasets/email-Eu.csv c
+
  ### Hypergraph file
 
 The file must be in comma-delimited csv format. Each Row will correspond to one hyperedge with each column corresponding to each vertex of the hyperedge. Do not include a header.
-For example:
-
-<Test.csv>
-
-1,2,3
-
-1,5
-
-3
-
-2,3,4
-
-2,5
-
-1
-
 We obtained all the datasets from https://www.cs.cornell.edu/~arb/data/ and cleaned repeated hyperedges and temporal information.
 
 ### Mode
